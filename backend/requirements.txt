@@ -6,3 +6,5 @@ scikit-learn==1.6.1
 numpy==2.2.5
 python-multipart==0.0.20
 httpx==0.28.1
+pandas==2.2.3
+joblib==1.4.2

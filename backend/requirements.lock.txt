@@ -1,4 +1,4 @@
-# Verified environment: Windows, Python 3.13. Optional reproducible full install.
+# Reference dependency pins, updated for ML integration (Python 3.12).
 annotated-types==0.8.0
 anyio==4.15.1
 certifi==2026.10.19
@@ -10,7 +10,7 @@ h11==0.16.0
 httpcore==1.0.9
 httpx==0.28.1
 idna==3.20
-joblib==1.6.0
+joblib==1.4.2
 numpy==2.2.5
 pydantic==2.11.4
 pydantic_core==2.33.2
@@ -23,3 +23,8 @@ threadpoolctl==3.7.0
 typing-inspection==0.4.4
 typing_extensions==4.16.0
 uvicorn==0.34.2
+pandas==2.2.3
+python-dateutil==2.9.0.post0
+pytz==2026.5
+tzdata==2026.5
+six==1.17.0

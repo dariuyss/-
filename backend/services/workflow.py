@@ -58,17 +58,30 @@ def submit_application(db: Session, application: LoanApplication):
     application.external_checks = snapshot
     fields = ScoringInput.model_fields
     values = {k: v for k, v in snapshot.items() if k in fields}
+    # Required source fields: missing external information is never treated as False/0.
+    try:
+        values.update(
+            has_overdue_30_days=snapshot["external_data"]["bki"]["has_overdue_30_days"],
+            has_fns_account_blockings=snapshot["external_data"]["fns"]["account_blocked"],
+            tax_payments_to_revenue_ratio=snapshot["external_data"]["fns"]["tax_payments_to_revenue_ratio"],
+        )
+    except KeyError as exc:
+        raise HTTPException(503, "Не получены обязательные данные для ML-скоринга") from exc
     overrides = (application.scoring_input or {}).get("financial_overrides")
     if overrides:
         values.update(overrides)
         application.external_checks = {**snapshot, "client_declared_financials": overrides}
     values.update(requested_amount=application.requested_amount, requested_term_months=application.requested_term_months,
                   product_type=application.product.product_type)
-    data = ScoringInput.model_validate(values)
+    from pydantic import ValidationError
+    try:
+        data = ScoringInput.model_validate(values)
+    except ValidationError as exc:
+        raise HTTPException(503, "Некорректные данные источника скоринга") from exc
     application.scoring_input = data.model_dump()
     if overrides:
         record(db, application, "CLIENT", "Для скоринга использованы заявленные клиентом выручка, прибыль и ежемесячные платежи; внешние проверки сохранены отдельно")
-    transition(db, application, "SCORING", "SYSTEM", "Данные обогащены; вызван демонстрационный скоринг")
+    transition(db, application, "SCORING", "SYSTEM", "Данные обогащены; вызван ML-скоринг (градиентный бустинг, синтетическая модель)")
     result = evaluate_application(data)
     application.scoring_result = result.model_dump()
     if snapshot["fns_blocked"] or result.decision == "REJECTED":

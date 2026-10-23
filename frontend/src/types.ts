@@ -13,6 +13,7 @@ export interface Product {
 }
 export interface Offer { amount: number; term_months: number; interest_rate: number; monthly_payment: number; product_type: ProductType; reason?: string }
 export interface ScoringResult {
+  model_name?: string; model_version?: string; policy_version?: string
   score: number; probability_of_default: number; risk_grade: Grade
   decision: 'APPROVED' | 'ALTERNATIVE_OFFER' | 'MANUAL_REVIEW' | 'REJECTED'; dti_ratio: number
   factors_explanation: { factor: string; impact: number; description: string }[]

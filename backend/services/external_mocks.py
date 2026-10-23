@@ -12,7 +12,7 @@ from ..models import CompanyProfile
 PRESETS = {
     "7701111111": dict(name='ООО «АльфаТех Логистик»', org_type="OOO", okved="62.01", business_age_months=84,
                        annual_revenue=180_000_000., monthly_net_profit=3_000_000., current_debt_load=0.,
-                       credit_history_score=950, has_overdue_90_days=False, has_tax_debts=False, fns_blocked=False),
+                       credit_history_score=820, has_overdue_90_days=False, has_tax_debts=False, fns_blocked=False),
     "7702222222": dict(name='ИП Смирнов А.В. «Сеть кофеен Бодрость»', org_type="IP", okved="56.10", business_age_months=48,
                        annual_revenue=36_000_000., monthly_net_profit=450_000., current_debt_load=80_000.,
                        credit_history_score=790, has_overdue_90_days=False, has_tax_debts=False, fns_blocked=False),
@@ -43,13 +43,18 @@ def company_by_inn(inn: str) -> dict:
                        org_type="IP" if len(inn) == 12 else "OOO", okved=rng.choice(["62.01", "56.10", "41.20", "47.11"]),
                        business_age_months=rng.randint(6, 120), annual_revenue=revenue,
                        monthly_net_profit=round(revenue / 12 * rng.uniform(.08, .22), 2),
-                       current_debt_load=float(rng.randrange(0, 150) * 1000), credit_history_score=rng.randint(500, 960),
+                       current_debt_load=float(rng.randrange(0, 150) * 1000), credit_history_score=rng.randint(500, 850),
                        has_overdue_90_days=rng.random() < .08, has_tax_debts=rng.random() < .08, fns_blocked=False)
+    # Extra ML inputs live in the existing external_data JSON (no DB migration).
+    # This independent seeded stream keeps mock financials stable.
+    risk_rng = random.Random("ml-v1:" + inn)
+    overdue30 = profile["has_overdue_90_days"] or (False if inn in PRESETS else risk_rng.random() < .10)
+    tax_ratio = .05 if inn in PRESETS else round(risk_rng.uniform(.03, .07), 4)
     return {"inn": inn, **profile, "is_demo": inn in PRESETS, "external_data": {
         "is_mock": True,
         "egrul_egrip": {"source": "ЕГРЮЛ/ЕГРИП (симулятор)", "status": "ACTIVE", "name": profile["name"], "okved": profile["okved"]},
-        "fns": {"source": "ФНС Прозрачный бизнес (симулятор)", "has_tax_debts": profile["has_tax_debts"], "account_blocked": profile["fns_blocked"]},
-        "bki": {"source": "БКИ (симулятор)", "score": profile["credit_history_score"], "has_overdue_90_days": profile["has_overdue_90_days"],
+        "fns": {"source": "ФНС Прозрачный бизнес (симулятор)", "has_tax_debts": profile["has_tax_debts"], "account_blocked": profile["fns_blocked"], "tax_payments_to_revenue_ratio": tax_ratio},
+        "bki": {"source": "БКИ (симулятор)", "score": profile["credit_history_score"], "has_overdue_30_days": overdue30, "has_overdue_90_days": profile["has_overdue_90_days"],
                 "monthly_debt_payments": profile["current_debt_load"]},
     }}
 
@@ -57,8 +62,13 @@ def company_by_inn(inn: str) -> dict:
 def get_or_create_company(db: Session, inn: str) -> CompanyProfile:
     validate_inn(inn)
     company = db.scalar(select(CompanyProfile).where(CompanyProfile.inn == inn))
+    snapshot = company_by_inn(inn)
     if company is None:
-        company = CompanyProfile(**company_by_inn(inn))
+        company = CompanyProfile(**snapshot)
         db.add(company)
         db.flush()
+    else:
+        # Refresh simulated credit data, preserving historical application snapshots.
+        company.credit_history_score = snapshot["credit_history_score"]
+        company.external_data = snapshot["external_data"]
     return company

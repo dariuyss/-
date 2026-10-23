@@ -9,10 +9,12 @@ from sqlalchemy.orm.exc import StaleDataError
 from .database import Base, SessionLocal, engine
 from .routers import bank, catalog, client
 from .seed import seed_database
+from .scoring.engine import model_metadata
 
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
+    model_metadata()  # Fail startup clearly if the artifact is absent or incompatible.
     Base.metadata.create_all(engine)
     with SessionLocal.begin() as db:
         seed_database(db)
@@ -21,7 +23,7 @@ async def lifespan(app: FastAPI):
 
 
 app = FastAPI(title="Умный кредитный кабинет предпринимателя", version="1.0.0", lifespan=lifespan,
-              description="Хакатон-демо: синтетические данные, stub скоринга, симуляция SMS-ПЭП и выдачи. API без аутентификации.")
+              description="Хакатон-демо: синтетические данные, ML-скоринг на градиентном бустинге, симуляция SMS-ПЭП и выдачи. API без аутентификации.")
 app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_credentials=False,
                    allow_methods=["*"], allow_headers=["*"])
 app.include_router(catalog.router)
@@ -49,4 +51,5 @@ def health():
     from sqlalchemy import text
     with engine.connect() as connection:
         connection.execute(text("SELECT 1"))
-    return {"status": "ok", "scoring_engine": "demo_stub", "external_services": "mocks"}
+    return {"status": "ok", "scoring_engine": model_metadata()["model_name"],
+            "model_version": model_metadata()["model_version"], "external_services": "mocks"}

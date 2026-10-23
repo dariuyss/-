@@ -18,7 +18,10 @@ class ScoringInput(Contract):
     monthly_net_profit: float = Field(ge=-1e12, le=1e12)
     current_debt_load: float = Field(ge=0, le=1e12)
     credit_history_score: int = Field(ge=0, le=1000)
+    has_overdue_30_days: bool
     has_overdue_90_days: bool
+    has_fns_account_blockings: bool
+    tax_payments_to_revenue_ratio: float = Field(ge=0, le=1)
     has_tax_debts: bool
     requested_amount: float = Field(gt=0, le=1e12)
     requested_term_months: int = Field(ge=1, le=360)
@@ -44,6 +47,10 @@ class AlternativeOffer(Offer):
 
 
 class ScoringResult(Contract):
+    model_name: str
+    model_version: str
+    policy_version: str
+
     score: int = Field(ge=0, le=1000)
     probability_of_default: float = Field(ge=0, le=1)
     risk_grade: Literal["A", "B", "C", "D"]
