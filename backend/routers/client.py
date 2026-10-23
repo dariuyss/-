@@ -31,6 +31,8 @@ def create_application(data: ApplicationCreate, db: Session = Depends(get_db)):
     application = LoanApplication(company=company, product=product, purpose=data.purpose,
                                   requested_amount=data.requested_amount, requested_term_months=data.requested_term_months,
                                   has_collateral=data.has_collateral, status="DRAFT")
+    if data.financial_overrides is not None:
+        application.scoring_input = {"financial_overrides": data.financial_overrides.model_dump()}
     validate_product(application)
     db.add(application)
     record(db, application, "CLIENT", "Создан черновик заявки")

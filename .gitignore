@@ -7,3 +7,10 @@ __pycache__/
 .pytest_cache/
 .env
 backend/tests/credit-tests-*/
+node_modules/
+.pnpm-store/
+dist/
+*.tsbuildinfo
+*.log
+!.env.example
+.qa/

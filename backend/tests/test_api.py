@@ -182,6 +182,20 @@ class CreditFlowTests(unittest.TestCase):
         cors = self.client.options("/api/products", headers={"Origin": "http://localhost:3000", "Access-Control-Request-Method": "GET"})
         self.assertEqual(cors.headers["access-control-allow-origin"], "*")
 
+    def test_client_financials_reach_scoring_without_changing_mocks(self):
+        original = self.client.get('/api/mocks/company-by-inn/7701111111').json()
+        figures = {"annual_revenue": 12_000_000, "monthly_net_profit": 100_000, "current_debt_load": 80_000}
+        a = self.create(financial_overrides=figures)
+        self.assertEqual(a['scoring_input']['monthly_net_profit'], 100_000)
+        self.assertEqual(a['scoring_input']['annual_revenue'], 12_000_000)
+        self.assertNotEqual(a['scoring_result']['decision'], 'APPROVED')
+        self.assertEqual(a['external_checks']['client_declared_financials'], figures)
+        self.assertEqual(a['external_checks']['monthly_net_profit'], original['monthly_net_profit'])
+        self.assertEqual(self.client.get('/api/mocks/company-by-inn/7701111111').json(), original)
+        draft = self.create(submit=False, financial_overrides=figures)
+        submitted = self.client.post(f'/api/applications/{draft["id"]}/submit').json()
+        self.assertEqual(submitted['scoring_input']['monthly_net_profit'], 100_000)
+
 
 if __name__ == "__main__":
     unittest.main()

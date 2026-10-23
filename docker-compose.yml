@@ -1,0 +1,48 @@
+name: alfa-smart-credit
+
+services:
+  backend:
+    build:
+      context: ./backend
+    environment:
+      DATABASE_URL: sqlite:////app/data/credit_cabinet.db
+    ports:
+      - "${BACKEND_PORT:-8000}:8000"
+    volumes:
+      - credit_data:/app/data
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/api/health', timeout=3)"]
+      interval: 15s
+      timeout: 5s
+      start_period: 30s
+      retries: 5
+    networks:
+      - credit_network
+
+  frontend:
+    build:
+      context: ./frontend
+    ports:
+      - "${FRONTEND_PORT:-3000}:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    restart: unless-stopped
+    init: true
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q -O /dev/null http://127.0.0.1/healthz && wget -q -O /dev/null http://127.0.0.1/api/health"]
+      interval: 20s
+      timeout: 5s
+      start_period: 10s
+      retries: 3
+    networks:
+      - credit_network
+
+volumes:
+  credit_data:
+
+networks:
+  credit_network:
+    driver: bridge

@@ -68,6 +68,13 @@ class ProductRecommendation(APIModel):
     explanation: str
 
 
+class FinancialOverrides(APIModel):
+    """Client-declared demo figures; kept apart from external-service snapshots."""
+    annual_revenue: float = Field(ge=0, le=1e15)
+    monthly_net_profit: float = Field(ge=-1e12, le=1e12)
+    current_debt_load: float = Field(ge=0, le=1e12)
+
+
 class ApplicationCreate(APIModel):
     inn: str = Field(pattern=r"^(?:[0-9]{10}|[0-9]{12})$")
     product_type: ProductType = "WORKING_CAPITAL"
@@ -76,6 +83,7 @@ class ApplicationCreate(APIModel):
     requested_term_months: int = Field(ge=1, le=360)
     has_collateral: bool = False
     submit: bool = True
+    financial_overrides: FinancialOverrides | None = None
 
 
 class ApplicationUpdate(APIModel):

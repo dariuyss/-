@@ -168,6 +168,17 @@ curl.exe -X POST http://127.0.0.1:8000/api/applications/3/documents -F "document
 
 ## Скоринг и новости
 
+Для frontend добавлено обратно совместимое необязательное поле `financial_overrides` в запросе
+`POST /api/applications`: `{"annual_revenue":12000000,"monthly_net_profit":100000,"current_debt_load":80000}`.
+Эти значения используются в скоринге вместо трех финансовых показателей моков. Исходные проверки
+сохраняются отдельно, переопределения видны в `external_checks.client_declared_financials` и истории.
+Общий профиль компании и данные внешних симуляторов не изменяются; новые колонки БД не нужны.
+Черновик сохраняет уточнения до отправки.
+
+Для запуска полного приложения через Docker Compose и описания frontend см. `../README.md`.
+В контейнере `container_main.py` служит адаптером для команды `uvicorn main:app` с сохранением
+импортов Python-пакета `backend`.
+
 `scoring/schemas.py` сохраняет заданные имена полей, запрещает лишние поля и приведение строк к числам.
 Вложенные словари результата валидируются через Factor, Offer и AlternativeOffer.
 Для подключения ML замените реализацию `evaluate_application(ScoringInput) -> ScoringResult`.

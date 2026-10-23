@@ -58,10 +58,16 @@ def submit_application(db: Session, application: LoanApplication):
     application.external_checks = snapshot
     fields = ScoringInput.model_fields
     values = {k: v for k, v in snapshot.items() if k in fields}
+    overrides = (application.scoring_input or {}).get("financial_overrides")
+    if overrides:
+        values.update(overrides)
+        application.external_checks = {**snapshot, "client_declared_financials": overrides}
     values.update(requested_amount=application.requested_amount, requested_term_months=application.requested_term_months,
                   product_type=application.product.product_type)
     data = ScoringInput.model_validate(values)
     application.scoring_input = data.model_dump()
+    if overrides:
+        record(db, application, "CLIENT", "Для скоринга использованы заявленные клиентом выручка, прибыль и ежемесячные платежи; внешние проверки сохранены отдельно")
     transition(db, application, "SCORING", "SYSTEM", "Данные обогащены; вызван демонстрационный скоринг")
     result = evaluate_application(data)
     application.scoring_result = result.model_dump()
